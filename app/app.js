@@ -25,41 +25,47 @@ function formatTime(iso) {
 }
 
 const rowEls = new Map(); // incident id -> its <li>, kept across refreshes
-function render(incidents) {
-  let prev = null;
-  for (const i of incidents) {
-    let li = rowEls.get(i.id);
-    if (!li) {
-      li = document.createElement('li');
-      li.setAttribute('data-testid', 'incident-row');
-      li.dataset.id = i.id;
-      li.tabIndex = 0;
-      li.innerHTML = '<span class="id"></span><span class="sev"></span><span class="what"></span><time></time><span class="mark"></span>';
-      rowEls.set(i.id, li);
-    }
-    // update in place; existing rows are never removed
-    li.className = `row ${i.severity}${i.id === openId ? ' selected' : ''}`;
-    li.querySelector('.id').textContent = i.id;
-    li.querySelector('.sev').textContent = i.severity;
-    li.querySelector('.what').textContent = `${i.service} · ${i.region} · ${i.summary}`;
-    const time = li.querySelector('time');
-    time.datetime = i.openedAt;
-    time.textContent = formatTime(i.openedAt);
-    const mark = li.querySelector('.mark');
-    const isAcked = acked.has(i.id);
-    if (isAcked && !mark.hasAttribute('data-testid')) {
-      mark.setAttribute('data-testid', 'acked');
-      mark.className = 'mark acked';
-      mark.textContent = 'acked ✓';
-    } else if (!isAcked) {
-      mark.removeAttribute('data-testid');
-      mark.className = 'mark';
-      mark.textContent = '';
-    }
-    // newest first: place each row right after the previous one
-    if (li.previousElementSibling !== prev) list.insertBefore(li, prev ? prev.nextSibling : list.firstChild);
-    prev = li;
+function createLi(i) {
+  const li = document.createElement('li');
+  li.setAttribute('data-testid', 'incident-row');
+  li.dataset.id = i.id;
+  li.tabIndex = 0;
+  li.innerHTML = '<span class="id"></span><span class="sev"></span><span class="what"></span><time></time><span class="mark"></span>';
+  rowEls.set(i.id, li);
+  return li;
+}
+
+function updateLi(li, i) {
+  li.className = `row ${i.severity}${i.id === openId ? ' selected' : ''}`;
+  li.querySelector('.id').textContent = i.id;
+  li.querySelector('.sev').textContent = i.severity;
+  li.querySelector('.what').textContent = `${i.service} · ${i.region} · ${i.summary}`;
+  const time = li.querySelector('time');
+  time.datetime = i.openedAt;
+  time.textContent = formatTime(i.openedAt);
+  const mark = li.querySelector('.mark');
+  const isAcked = acked.has(i.id);
+  if (isAcked && !mark.hasAttribute('data-testid')) {
+    mark.setAttribute('data-testid', 'acked');
+    mark.className = 'mark acked';
+    mark.textContent = 'acked ✓';
+  } else if (!isAcked) {
+    mark.removeAttribute('data-testid');
+    mark.className = 'mark';
+    mark.textContent = '';
   }
+}
+
+function render(incidents) {
+  // existing rows are only updated in place — never moved or removed
+  const fresh = [];
+  for (const i of incidents) {
+    const li = rowEls.get(i.id);
+    if (li) updateLi(li, i);
+    else fresh.push(createLi(i));
+  }
+  // new incidents are the newest ones: insert the batch at the top, newest first
+  for (let k = fresh.length - 1; k >= 0; k--) list.insertBefore(fresh[k], list.firstChild);
   renderPanel(incidents.find((i) => i.id === openId));
 }
 

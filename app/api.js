@@ -1,4 +1,3 @@
-// The incident API client. Keep using it: the ack needs the latest cursor, and it keeps it for you.
 import { API, SESSION } from './config.js';
 
 let cursor = null;

@@ -24,20 +24,42 @@ function formatTime(iso) {
   return `${dateFmt.format(d)} ${timeFmt.format(d)}`;
 }
 
+const rowEls = new Map(); // incident id -> its <li>, kept across refreshes
 function render(incidents) {
-  list.innerHTML = incidents
-    .map((i) => {
-      const isOpen = i.id === openId;
-      const isAcked = acked.has(i.id);
-      return `<li data-testid="incident-row" data-id="${i.id}" class="row ${i.severity}${isOpen ? ' selected' : ''}" tabindex="0">
-        <span class="id">${i.id}</span>
-        <span class="sev">${i.severity}</span>
-        <span class="what">${i.service} · ${i.region} · ${i.summary}</span>
-        <time datetime="${i.openedAt}">${formatTime(i.openedAt)}</time>
-        ${isAcked ? '<span data-testid="acked" class="acked">acked ✓</span>' : ''}
-      </li>`;
-    })
-    .join('');
+  let prev = null;
+  for (const i of incidents) {
+    let li = rowEls.get(i.id);
+    if (!li) {
+      li = document.createElement('li');
+      li.setAttribute('data-testid', 'incident-row');
+      li.dataset.id = i.id;
+      li.tabIndex = 0;
+      li.innerHTML = '<span class="id"></span><span class="sev"></span><span class="what"></span><time></time><span class="mark"></span>';
+      rowEls.set(i.id, li);
+    }
+    // update in place; existing rows are never removed
+    li.className = `row ${i.severity}${i.id === openId ? ' selected' : ''}`;
+    li.querySelector('.id').textContent = i.id;
+    li.querySelector('.sev').textContent = i.severity;
+    li.querySelector('.what').textContent = `${i.service} · ${i.region} · ${i.summary}`;
+    const time = li.querySelector('time');
+    time.datetime = i.openedAt;
+    time.textContent = formatTime(i.openedAt);
+    const mark = li.querySelector('.mark');
+    const isAcked = acked.has(i.id);
+    if (isAcked && !mark.hasAttribute('data-testid')) {
+      mark.setAttribute('data-testid', 'acked');
+      mark.className = 'mark acked';
+      mark.textContent = 'acked ✓';
+    } else if (!isAcked) {
+      mark.removeAttribute('data-testid');
+      mark.className = 'mark';
+      mark.textContent = '';
+    }
+    // newest first: place each row right after the previous one
+    if (li.previousElementSibling !== prev) list.insertBefore(li, prev ? prev.nextSibling : list.firstChild);
+    prev = li;
+  }
   renderPanel(incidents.find((i) => i.id === openId));
 }
 
@@ -70,8 +92,9 @@ async function refresh() {
       loader.remove();
     }
     if (page.incidents.length === 0 && !document.querySelector('[data-testid="empty"]')) {
-      list.innerHTML = '<li data-testid="empty" class="empty">no incidents tonight</li>';
+      list.insertAdjacentHTML('afterbegin', '<li data-testid="empty" class="empty">no incidents tonight</li>');
     } else if (page.incidents.length > 0) {
+      document.querySelector('[data-testid="empty"]')?.remove();
       render(page.incidents);
     }
   } catch (err) {

@@ -18,6 +18,7 @@ page.on('console', (m) => {
   if (m.text().startsWith('ack ')) acks.push(m.text());
 });
 
+const t0 = Date.now();
 await page.goto(URL);
 // loader -> list
 await page.waitForSelector('[data-testid="incident-row"]', { timeout: 20000 });
@@ -28,6 +29,7 @@ const n = await rows.count();
 const target = rows.nth(Math.min(1, n - 1));
 await target.locator('[data-testid="ack"]').click();
 await page.waitForSelector('[data-testid="acked"]', { timeout: 20000 });
+console.log('ackVisibleAt:', Date.now() - t0, 'ms after navigation start');
 await page.waitForTimeout(7000); // board stays open; 2s refresh runs
 await page.screenshot({ path: 'board.png', fullPage: false });
 await browser.close();

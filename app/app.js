@@ -40,7 +40,6 @@ function render(incidents) {
 async function refresh() {
   try {
     const page = await fetchIncidents();
-    const page = await fetchIncidents();
     if (loading) {
       loading = false;
       loader.remove();

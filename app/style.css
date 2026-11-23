@@ -14,3 +14,11 @@ footer { color: #777; font-size: 13px; }
 .ack { border: 1px solid #b00020; color: #b00020; background: #fff; border-radius: 6px; padding: 4px 14px; cursor: pointer; }
 .ack:disabled { opacity: .5; }
 .acked { color: #0a7d28; font-weight: 600; }
+.row { cursor: pointer; }
+.row.selected { outline: 2px solid #1d70b8; outline-offset: -2px; }
+.row .acked, .panel .acked { color: #0a7d28; font-weight: 600; }
+.panel { position: fixed; right: 24px; top: 24px; width: 340px; max-width: 90vw; background: #fff; border: 1px solid #d5d5d5; border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.12); padding: 16px; z-index: 5; }
+.panel h2 { margin: 0 0 6px; font-size: 16px; }
+.panel p { margin: 4px 0; }
+.panel .when { color: #555; }
+.panel-close { position: absolute; top: 8px; right: 10px; border: 0; background: none; font-size: 18px; cursor: pointer; color: #888; }

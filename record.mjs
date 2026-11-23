@@ -21,46 +21,46 @@ const at = () => `${Math.floor((Date.now() - t0) / 60000)}:${String(Math.floor((
 
 await page.goto(URL);
 await page.waitForSelector('[data-testid="incident-row"]', { timeout: 20000 });
-const firstTop = await page.locator('[data-testid="incident-row"]').first().getAttribute('data-id');
-console.log('board open at', at(), 'top:', firstTop);
-
-// watch like a person; wait for a new incident to land at the top
-let top = firstTop;
-let landedAt = null;
-for (let i = 0; i < 60; i++) {
-  await page.waitForTimeout(500);
-  const t = await page.locator('[data-testid="incident-row"]').first().getAttribute('data-id');
-  if (t !== top) {
-    top = t;
-    landedAt = at();
-    console.log('new incident landed at', landedAt, 'id:', top);
-    break;
-  }
-}
-if (!landedAt) throw new Error('no incident landed while watching');
-
-// pick the row I meant — the one that was on top before the landing — and ack it now,
-// while the list keeps re-rendering with fresh incidents
 const rows = page.locator('[data-testid="incident-row"]');
-const n = await rows.count();
-const target = rows.nth(Math.min(1, n - 1));
-const targetId = await target.getAttribute('data-id');
-console.log('acking row', targetId, 'at', at());
-await target.locator('[data-testid="ack"]').click();
-await page.waitForSelector('[data-testid="acked"]', { timeout: 20000 });
-console.log('ack mark visible at', at(), 'for', targetId);
+const aimRow = rows.nth(1); // second row is the one I mean
+const aimId = await aimRow.getAttribute('data-id');
+console.log('board open at', at(), '| aiming at row', aimId);
 
-// keep the board open a while; more incidents land while it stays current
-for (let i = 0; i < 12; i++) {
-  await page.waitForTimeout(2000);
-  const t = await page.locator('[data-testid="incident-row"]').first().getAttribute('data-id');
-  if (t !== top) { top = t; console.log('another incident landed at', at(), 'id:', t); }
+// hover like a person looking at the button
+const aimBtn = aimRow.locator('[data-testid="ack"]');
+await aimBtn.hover();
+const box = await aimBtn.boundingBox();
+console.log('aimed at', at(), '| button coords', JSON.stringify(box));
+
+// wait for a new incident to land at the top (list shifts down)
+let top = await rows.first().getAttribute('data-id');
+for (let i = 0; i < 120; i++) {
+  await page.waitForTimeout(500);
+  const t = await rows.first().getAttribute('data-id');
+  if (t !== top) { console.log('incident landed at', at(), '| new top:', t); break; }
 }
-await page.screenshot({ path: 'board.png' });
+
+// the person clicks where they were looking — the original spot, which after the shift holds another row
+const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+console.log('clicking at', at(), '| original aim was', aimId);
+await page.mouse.move(cx, cy);
+await page.mouse.click(cx, cy);
+await page.waitForSelector('[data-testid="acked"]', { timeout: 20000 });
+
+const ackedRowId = await page.locator('[data-testid="incident-row"]:has([data-testid="acked"])').first().getAttribute('data-id');
+console.log('acked row on screen:', ackedRowId, 'at', at());
+console.log('aimed at:', aimId, '| got:', ackedRowId);
+
+// keep watching; board stays current
+for (let i = 0; i < 10; i++) {
+  await page.waitForTimeout(2000);
+  const t = await rows.first().getAttribute('data-id');
+  console.log('watching at', at(), '| top:', t);
+}
 await browser.close();
 
 const file = fs.readdirSync(out)[0];
 fs.renameSync(`${out}/${file}`, 'board-recording.webm');
 fs.writeFileSync('acks.json', JSON.stringify(acks, null, 2));
-fs.writeFileSync('timing.json', JSON.stringify({ boardOpenAt: '0:00', landedAt, targetId, ackedAt: acks[0] }, null, 2));
+fs.writeFileSync('race.json', JSON.stringify({ aimId, ackedRowId, acks }, null, 2));
 console.log('acks:', JSON.stringify(acks));
